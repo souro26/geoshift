@@ -2,34 +2,40 @@
 __pycache__/
 *.py[cod]
 *.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
-# Environments
-.conda/
+# Environments and secrets
 .venv/
 venv/
+.env
+.env.*
+!.env.example
+
+# Hugging Face and dataset cache
+.cache/
+huggingface/
+data/cache/
+data/raw/
+data/processed/
+
+# Model checkpoints and artifacts
+checkpoints/
+artifacts/
+outputs/
+runs/
+*.pt
+*.pth
+*.ckpt
+*.onnx
 
 # Jupyter
 .ipynb_checkpoints/
 
-# Data
-data/raw/
-data/processed/
-
-# Model checkpoints
-checkpoints/
-*.pt
-*.pth
-*.ckpt
-*.safetensors
-
-# Experiment outputs
-outputs/
-runs/
-logs/
-
-# Environment variables / secrets
-.env
-
-# OS
+# IDE and operating system
+.vscode/
+.idea/
 .DS_Store
 Thumbs.db
