@@ -5,7 +5,7 @@ required_columns = {"source_index","label","region","country"}
 
 validation_fraction = 0.15
 
-def build_geographic_splits(samples: pd.DataFrame, heldout_region: str, validation_fraction: float = validation_fraction, seed: int = 42):
+def build_geographic_split(samples: pd.DataFrame, heldout_region: str, validation_fraction: float = validation_fraction, seed: int = 42):
     """Build a geographic holdout split from GeoDE metadata."""
     missing_columns = required_columns - set(samples.columns)
 
