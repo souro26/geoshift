@@ -1,0 +1,60 @@
+{
+  "dataset_id": "MLap/GeoDE",
+  "dataset_revision": "acbae31823b22f84c3bbb11585d37d50aabaac44",
+  "total_samples": 61925,
+  "number_of_classes": 40,
+  "number_of_regions": 6,
+  "validation_fraction": 0.15,
+  "random_seed": 42,
+  "generated_at_utc": "2026-11-19T20:43:44.450515+00:00",
+  "manifests": {
+    "Africa": {
+      "filename": "heldout_Africa.csv",
+      "split_counts": {
+        "train": 42331,
+        "test": 12121,
+        "validation": 7473
+      }
+    },
+    "Americas": {
+      "filename": "heldout_Americas.csv",
+      "split_counts": {
+        "train": 44440,
+        "test": 9643,
+        "validation": 7842
+      }
+    },
+    "EastAsia": {
+      "filename": "heldout_EastAsia.csv",
+      "split_counts": {
+        "train": 44350,
+        "test": 9747,
+        "validation": 7828
+      }
+    },
+    "Europe": {
+      "filename": "heldout_Europe.csv",
+      "split_counts": {
+        "train": 43185,
+        "test": 11111,
+        "validation": 7629
+      }
+    },
+    "SouthEastAsia": {
+      "filename": "heldout_SouthEastAsia.csv",
+      "split_counts": {
+        "train": 43663,
+        "test": 10551,
+        "validation": 7711
+      }
+    },
+    "WestAsia": {
+      "filename": "heldout_WestAsia.csv",
+      "split_counts": {
+        "train": 45191,
+        "test": 8752,
+        "validation": 7982
+      }
+    }
+  }
+}
