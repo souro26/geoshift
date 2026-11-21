@@ -92,3 +92,64 @@ def test_empty_dataset_raises_error():
 
     with pytest.raises(ValueError):
         build_geographic_manifests(empty_metadata)
+
+
+
+@pytest.mark.parametrize(
+    "column, incorrect_value",
+    [
+        ("label", "truck"),
+        ("region", "Europe"),
+        ("country", "Brazil"),
+    ],
+)
+def test_manifest_rejects_modified_source_metadata(
+    sample_metadata,
+    column,
+    incorrect_value,
+):
+    manifests = build_geographic_manifests(sample_metadata)
+    manifest = manifests["Africa"].copy()
+
+    row_index = manifest.index[0]
+    manifest.loc[row_index, column] = incorrect_value
+
+    with pytest.raises(ValueError, match="metadata"):
+        validate_geographic_manifest(
+            manifest=manifest,
+            heldout_region="Africa",
+            expected_samples=sample_metadata,
+        )
+
+
+def test_manifest_rejects_expected_samples_with_duplicate_indices(
+    sample_metadata,
+):
+    manifests = build_geographic_manifests(sample_metadata)
+    manifest = manifests["Africa"].copy()
+
+    expected = sample_metadata.copy()
+    expected.loc[1, "source_index"] = expected.loc[0, "source_index"]
+
+    with pytest.raises(ValueError, match="duplicate"):
+        validate_geographic_manifest(
+            manifest=manifest,
+            heldout_region="Africa",
+            expected_samples=expected,
+        )
+
+
+def test_manifest_rejects_expected_samples_missing_required_columns(
+    sample_metadata,
+):
+    manifests = build_geographic_manifests(sample_metadata)
+    manifest = manifests["Africa"].copy()
+
+    expected = sample_metadata.drop(columns=["country"])
+
+    with pytest.raises(ValueError, match="missing columns"):
+        validate_geographic_manifest(
+            manifest=manifest,
+            heldout_region="Africa",
+            expected_samples=expected,
+        )
