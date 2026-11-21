@@ -14,20 +14,20 @@ def sample_metadata() -> pd.DataFrame:
     records = []
 
     for label in ["car", "dog"]:
-        for region in ["Africa", "Europe", "Asia"]:
-            for index in range(20):
+        for region in ["Africa", "Europe", "EastAsia"]:
+            for _ in range(20):
+                country = {
+                    "Africa": "Nigeria",
+                    "Europe": "France",
+                    "EastAsia": "Japan",
+                }[region]
+
                 records.append(
                     {
                         "source_index": len(records),
                         "label": label,
                         "region": region,
-                        "country": (
-                            "Nigeria"
-                            if region == "Africa"
-                            else "France"
-                            if region == "Europe"
-                            else "Japan"
-                        ),
+                        "country": country,
                     }
                 )
 
@@ -88,7 +88,6 @@ def test_no_source_sample_is_lost_or_duplicated(sample_metadata):
     )
 
     assert len(result) == len(sample_metadata)
-
     assert result["source_index"].is_unique
 
     assert set(result["source_index"]) == set(
@@ -144,12 +143,19 @@ def test_different_seeds_can_change_validation_assignments(
     assert first_validation != second_validation
 
 
-def test_invalid_validation_fraction_raises_error(sample_metadata):
+@pytest.mark.parametrize(
+    "invalid_fraction",
+    [0, 1, -0.1, 1.1, float("nan"), "0.15"],
+)
+def test_invalid_validation_fraction_raises_error(
+    sample_metadata,
+    invalid_fraction,
+):
     with pytest.raises(ValueError):
         build_geographic_split(
             sample_metadata,
             heldout_region="Africa",
-            validation_fraction=1.0,
+            validation_fraction=invalid_fraction,
         )
 
 
@@ -184,9 +190,28 @@ def test_duplicate_source_indices_raise_error(sample_metadata):
         ignore_index=True,
     )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="unique"):
         build_geographic_split(
             duplicated,
+            heldout_region="Africa",
+        )
+
+
+@pytest.mark.parametrize(
+    "invalid_index",
+    [True, 1.5, "zero"],
+)
+def test_non_integer_source_indices_raise_error(
+    sample_metadata,
+    invalid_index,
+):
+    malformed = sample_metadata.copy()
+    malformed["source_index"] = malformed["source_index"].astype(object)
+    malformed.loc[0, "source_index"] = invalid_index
+
+    with pytest.raises(ValueError, match="integer"):
+        build_geographic_split(
+            malformed,
             heldout_region="Africa",
         )
 
@@ -195,8 +220,75 @@ def test_missing_metadata_raises_error(sample_metadata):
     invalid_metadata = sample_metadata.copy()
     invalid_metadata.loc[0, "country"] = None
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="missing"):
         build_geographic_split(
             invalid_metadata,
+            heldout_region="Africa",
+        )
+
+
+@pytest.mark.parametrize(
+    "column",
+    ["label", "region", "country"],
+)
+def test_empty_text_metadata_raises_error(
+    sample_metadata,
+    column,
+):
+    invalid_metadata = sample_metadata.copy()
+    invalid_metadata.loc[0, column] = "   "
+
+    with pytest.raises(ValueError, match="invalid text"):
+        build_geographic_split(
+            invalid_metadata,
+            heldout_region="Africa",
+        )
+
+
+def test_non_string_metadata_raises_error(sample_metadata):
+    invalid_metadata = sample_metadata.copy()
+    invalid_metadata["label"] = invalid_metadata["label"].astype(object)
+    invalid_metadata.loc[0, "label"] = 123
+
+    with pytest.raises(ValueError, match="invalid text"):
+        build_geographic_split(
+            invalid_metadata,
+            heldout_region="Africa",
+        )
+
+
+def test_input_dataframe_is_not_modified(sample_metadata):
+    original = sample_metadata.copy(deep=True)
+
+    build_geographic_split(
+        sample_metadata,
+        heldout_region="Africa",
+    )
+
+    pd.testing.assert_frame_equal(sample_metadata, original)
+
+
+def test_single_sample_class_region_group_raises_error(sample_metadata):
+    # Remove all but one dog sample from Europe.
+    malformed = sample_metadata.loc[
+        ~(
+            (sample_metadata["label"] == "dog")
+            & (sample_metadata["region"] == "Europe")
+        )
+    ].copy()
+
+    extra_sample = sample_metadata.loc[
+        (sample_metadata["label"] == "dog")
+        & (sample_metadata["region"] == "Europe")
+    ].iloc[[0]].copy()
+
+    malformed = pd.concat(
+        [malformed, extra_sample],
+        ignore_index=True,
+    )
+
+    with pytest.raises(ValueError, match="at least two"):
+        build_geographic_split(
+            malformed,
             heldout_region="Africa",
         )
