@@ -269,7 +269,6 @@ def test_input_dataframe_is_not_modified(sample_metadata):
 
 
 def test_single_sample_class_region_group_raises_error(sample_metadata):
-    # Remove all but one dog sample from Europe.
     malformed = sample_metadata.loc[
         ~(
             (sample_metadata["label"] == "dog")
