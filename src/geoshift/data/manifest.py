@@ -1,4 +1,6 @@
 
+from numbers import Integral
+
 import pandas as pd
 
 from geoshift.data.splits import build_geographic_split
@@ -55,6 +57,24 @@ def validate_geographic_manifest(
 
     if expected_samples[SOURCE_COLUMNS].isnull().any().any():
         raise ValueError("Expected samples contain missing values.")
+
+    # Validate source indices before checking for duplicates.
+    # bool is a subclass of int in Python, so explicitly reject it.
+    for name, dataframe in [
+        ("Manifest", manifest),
+        ("Expected samples", expected_samples),
+    ]:
+        invalid_indices = dataframe["source_index"].map(
+            lambda value: (
+                not isinstance(value, Integral)
+                or isinstance(value, bool)
+            )
+        )
+
+        if invalid_indices.any():
+            raise ValueError(
+                f"{name} source_index values must be integers."
+            )
 
     if manifest["source_index"].duplicated().any():
         raise ValueError("Manifest contains duplicate source indices.")
@@ -132,6 +152,16 @@ def build_geographic_manifests(
 
     if samples[SOURCE_COLUMNS].isnull().any().any():
         raise ValueError("Samples contain missing metadata values.")
+
+    invalid_indices = samples["source_index"].map(
+        lambda value: (
+            not isinstance(value, Integral)
+            or isinstance(value, bool)
+        )
+    )
+
+    if invalid_indices.any():
+        raise ValueError("source_index values must be integers.")
 
     if samples["source_index"].duplicated().any():
         raise ValueError("Samples contain duplicate source indices.")

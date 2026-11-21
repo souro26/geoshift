@@ -1,4 +1,6 @@
 
+from numbers import Integral
+
 import pandas as pd
 
 
@@ -42,6 +44,18 @@ def validate_geode_metadata(samples: pd.DataFrame) -> dict:
             f"Dataset contains missing metadata values: {missing_counts}"
         )
 
+    invalid_indices = samples["source_index"].map(
+        lambda value: (
+            not isinstance(value, Integral)
+            or isinstance(value, bool)
+        )
+    )
+
+    if invalid_indices.any():
+        raise ValueError(
+            "source_index must contain integer values."
+        )
+
     if samples["source_index"].duplicated().any():
         duplicate_count = int(
             samples["source_index"].duplicated().sum()
@@ -49,14 +63,6 @@ def validate_geode_metadata(samples: pd.DataFrame) -> dict:
 
         raise ValueError(
             f"Found {duplicate_count} duplicate source_index values."
-        )
-
-    if (
-        not pd.api.types.is_integer_dtype(samples["source_index"])
-        or pd.api.types.is_bool_dtype(samples["source_index"])
-    ):
-        raise ValueError(
-            "source_index must contain integer values."
         )
 
     for column in ["label", "region", "country"]:
