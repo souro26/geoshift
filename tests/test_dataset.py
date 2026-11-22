@@ -1,8 +1,11 @@
 
 """Tests for the GeoDE PyTorch streaming dataset."""
 
+from types import SimpleNamespace
+
 import pandas as pd
 import pytest
+from torch.utils.data import DataLoader
 
 from geoshift.data.dataset import GeoDEIterableDataset
 
@@ -178,7 +181,7 @@ def test_transform_is_applied(monkeypatch, sample_manifest):
 
 
 def test_invalid_split_raises_error(sample_manifest):
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Invalid split"):
         GeoDEIterableDataset(
             manifest=sample_manifest,
             split="invalid",
@@ -187,7 +190,7 @@ def test_invalid_split_raises_error(sample_manifest):
 
 
 def test_missing_revision_raises_error(sample_manifest):
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="pinned GeoDE revision"):
         GeoDEIterableDataset(
             manifest=sample_manifest,
             split="test",
@@ -196,7 +199,7 @@ def test_missing_revision_raises_error(sample_manifest):
 
 
 def test_empty_selected_split_raises_error(sample_manifest):
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="No samples found"):
         GeoDEIterableDataset(
             manifest=sample_manifest,
             split="validation",
@@ -207,9 +210,220 @@ def test_empty_selected_split_raises_error(sample_manifest):
 def test_missing_manifest_column_raises_error(sample_manifest):
     invalid_manifest = sample_manifest.drop(columns=["country"])
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="missing columns"):
         GeoDEIterableDataset(
             manifest=invalid_manifest,
             split="test",
             revision="test_revision",
         )
+
+
+@pytest.mark.parametrize("invalid_index", [True, 1.5, "zero"])
+def test_invalid_source_index_raises_error(
+    sample_manifest,
+    invalid_index,
+):
+    invalid_manifest = sample_manifest.copy()
+    invalid_manifest["source_index"] = invalid_manifest[
+        "source_index"
+    ].astype(object)
+    invalid_manifest.loc[0, "source_index"] = invalid_index
+
+    with pytest.raises(ValueError, match="must be integers"):
+        GeoDEIterableDataset(
+            manifest=invalid_manifest,
+            split="test",
+            revision="test_revision",
+        )
+
+
+def test_duplicate_source_indices_raise_error(sample_manifest):
+    invalid_manifest = sample_manifest.copy()
+    invalid_manifest.loc[1, "source_index"] = 0
+
+    with pytest.raises(ValueError, match="duplicate source indices"):
+        GeoDEIterableDataset(
+            manifest=invalid_manifest,
+            split="test",
+            revision="test_revision",
+        )
+
+
+@pytest.mark.parametrize(
+    "column,value",
+    [
+        ("label", ""),
+        ("region", " "),
+        ("country", 123),
+    ],
+)
+def test_invalid_metadata_text_raises_error(
+    sample_manifest,
+    column,
+    value,
+):
+    invalid_manifest = sample_manifest.copy()
+    invalid_manifest[column] = invalid_manifest[column].astype(object)
+    invalid_manifest.loc[0, column] = value
+
+    with pytest.raises(ValueError, match="invalid text values"):
+        GeoDEIterableDataset(
+            manifest=invalid_manifest,
+            split="test",
+            revision="test_revision",
+        )
+
+
+def test_invalid_split_assignment_raises_error(sample_manifest):
+    invalid_manifest = sample_manifest.copy()
+    invalid_manifest.loc[0, "split"] = "testing"
+
+    with pytest.raises(ValueError, match="invalid split assignments"):
+        GeoDEIterableDataset(
+            manifest=invalid_manifest,
+            split="test",
+            revision="test_revision",
+        )
+
+
+def test_multiple_dataloader_workers_are_rejected(
+    monkeypatch,
+    sample_manifest,
+):
+    monkeypatch.setattr(
+        "geoshift.data.dataset.GeoDEStream",
+        FakeGeoDEStream,
+    )
+
+    monkeypatch.setattr(
+        "geoshift.data.dataset.get_worker_info",
+        lambda: SimpleNamespace(id=0, num_workers=2),
+    )
+
+    dataset = GeoDEIterableDataset(
+        manifest=sample_manifest,
+        split="test",
+        revision="test_revision",
+    )
+
+    with pytest.raises(RuntimeError, match="Multiple DataLoader workers"):
+        next(iter(dataset))
+
+
+def test_dataloader_with_zero_workers(
+    monkeypatch,
+    sample_manifest,
+):
+    monkeypatch.setattr(
+        "geoshift.data.dataset.GeoDEStream",
+        FakeGeoDEStream,
+    )
+
+    dataset = GeoDEIterableDataset(
+        manifest=sample_manifest,
+        split="test",
+        revision="test_revision",
+    )
+
+    loader = DataLoader(
+        dataset,
+        batch_size=1,
+        num_workers=0,
+        collate_fn=lambda batch: batch,
+    )
+
+    samples = list(loader)
+
+    assert len(samples) == 2
+    assert samples[0][0]["label_name"] == "car"
+    assert samples[1][0]["label_name"] == "dog"
+
+
+def test_missing_image_raises_error(
+    monkeypatch,
+    sample_manifest,
+):
+    class MissingImageStream:
+        def __init__(self, **kwargs):
+            self.dataset = [
+                {
+                    "image": None,
+                    "object": "car",
+                    "region": "Africa",
+                    "ip_country": "Nigeria",
+                }
+            ]
+
+    monkeypatch.setattr(
+        "geoshift.data.dataset.GeoDEStream",
+        MissingImageStream,
+    )
+
+    dataset = GeoDEIterableDataset(
+        manifest=sample_manifest.iloc[[0]],
+        split="test",
+        revision="test_revision",
+    )
+
+    with pytest.raises(RuntimeError, match="Missing image"):
+        next(iter(dataset))
+
+
+def test_stream_exhaustion_raises_error(
+    monkeypatch,
+    sample_manifest,
+):
+    class ShortStream:
+        def __init__(self, **kwargs):
+            self.dataset = [
+                {
+                    "image": FakeImage(),
+                    "object": "car",
+                    "region": "Africa",
+                    "ip_country": "Nigeria",
+                }
+            ]
+
+    monkeypatch.setattr(
+        "geoshift.data.dataset.GeoDEStream",
+        ShortStream,
+    )
+
+    dataset = GeoDEIterableDataset(
+        manifest=sample_manifest,
+        split="test",
+        revision="test_revision",
+    )
+
+    with pytest.raises(RuntimeError, match="Stream ended"):
+        list(dataset)
+
+
+def test_metadata_mismatch_raises_error(
+    monkeypatch,
+    sample_manifest,
+):
+    class MismatchedStream:
+        def __init__(self, **kwargs):
+            self.dataset = [
+                {
+                    "image": FakeImage(),
+                    "object": "car",
+                    "region": "Europe",
+                    "ip_country": "France",
+                }
+            ]
+
+    monkeypatch.setattr(
+        "geoshift.data.dataset.GeoDEStream",
+        MismatchedStream,
+    )
+
+    dataset = GeoDEIterableDataset(
+        manifest=sample_manifest.iloc[[0]],
+        split="test",
+        revision="test_revision",
+    )
+
+    with pytest.raises(RuntimeError, match="Metadata mismatch"):
+        next(iter(dataset))

@@ -4,9 +4,11 @@
 import numpy as np
 import torch
 from PIL import Image
+from torchvision import transforms
 
 from geoshift.data.transforms import (
     IMAGE_SIZE,
+    RESIZE_SIZE,
     IMAGENET_MEAN,
     IMAGENET_STD,
     build_eval_transform,
@@ -22,21 +24,17 @@ def create_test_image() -> Image.Image:
     array[:, :, 1] = 160
     array[:, :, 2] = 200
 
-    return Image.fromarray(array, mode="RGB")
+    return Image.fromarray(array)
 
 
 def test_training_transform_returns_tensor():
-    transform = build_train_transform()
-
-    result = transform(create_test_image())
+    result = build_train_transform()(create_test_image())
 
     assert isinstance(result, torch.Tensor)
 
 
 def test_evaluation_transform_returns_tensor():
-    transform = build_eval_transform()
-
-    result = transform(create_test_image())
+    result = build_eval_transform()(create_test_image())
 
     assert isinstance(result, torch.Tensor)
 
@@ -107,3 +105,47 @@ def test_evaluation_transform_preserves_three_channels():
     result = build_eval_transform()(create_test_image())
 
     assert result.shape[0] == 3
+
+
+def test_training_transform_contains_expected_augmentations():
+    transform = build_train_transform()
+
+    assert isinstance(transform.transforms[0], transforms.RandomResizedCrop)
+    assert isinstance(transform.transforms[1], transforms.ColorJitter)
+
+
+def test_evaluation_transform_contains_no_random_augmentations():
+    transform = build_eval_transform()
+
+    assert isinstance(transform.transforms[0], transforms.Resize)
+    assert isinstance(transform.transforms[1], transforms.CenterCrop)
+
+    assert not any(
+        isinstance(
+            operation,
+            (
+                transforms.RandomResizedCrop,
+                transforms.RandomHorizontalFlip,
+                transforms.ColorJitter,
+            ),
+        )
+        for operation in transform.transforms
+    )
+
+
+def test_evaluation_resize_size():
+    transform = build_eval_transform()
+
+    resize = transform.transforms[0]
+
+    assert resize.size == RESIZE_SIZE
+
+
+def test_evaluation_transform_uses_imagenet_normalization():
+    transform = build_eval_transform()
+
+    normalization = transform.transforms[-1]
+
+    assert isinstance(normalization, transforms.Normalize)
+    assert tuple(normalization.mean) == IMAGENET_MEAN
+    assert tuple(normalization.std) == IMAGENET_STD

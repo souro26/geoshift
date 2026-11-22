@@ -1,4 +1,6 @@
+
 from collections.abc import Callable
+from numbers import Integral
 
 import pandas as pd
 from torch.utils.data import IterableDataset, get_worker_info
@@ -11,7 +13,10 @@ REQUIRED_COLUMNS = {
     "label",
     "region",
     "country",
+    "split",
 }
+
+VALID_SPLITS = {"train", "validation", "test"}
 
 
 class GeoDEIterableDataset(IterableDataset):
@@ -36,20 +41,64 @@ class GeoDEIterableDataset(IterableDataset):
         if manifest.empty:
             raise ValueError("Manifest cannot be empty.")
 
-        if manifest[list(REQUIRED_COLUMNS)].isnull().any().any():
-            raise ValueError("Manifest contains missing metadata values.")
-
-        if manifest["source_index"].duplicated().any():
-            raise ValueError("Manifest contains duplicate source indices.")
-
-        if "split" not in manifest.columns:
-            raise ValueError("Manifest must contain a split column.")
-
-        if split not in {"train", "validation", "test"}:
+        if split not in VALID_SPLITS:
             raise ValueError(f"Invalid split name: {split}")
 
-        if not revision:
+        if not isinstance(revision, str) or not revision.strip():
             raise ValueError("A pinned GeoDE revision is required.")
+
+        metadata_columns = [
+            "source_index",
+            "label",
+            "region",
+            "country",
+            "split",
+        ]
+
+        if manifest[metadata_columns].isnull().any().any():
+            raise ValueError("Manifest contains missing metadata values.")
+
+        # Validate source indices before using them as dictionary keys.
+        invalid_indices = manifest["source_index"].map(
+            lambda value: (
+                not isinstance(value, Integral)
+                or isinstance(value, bool)
+            )
+        )
+
+        if invalid_indices.any():
+            raise ValueError(
+                "Manifest source_index values must be integers."
+            )
+
+        if manifest["source_index"].duplicated().any():
+            raise ValueError(
+                "Manifest contains duplicate source indices."
+            )
+
+        # Validate metadata text fields.
+        for column in ["label", "region", "country"]:
+            invalid_values = manifest[column].map(
+                lambda value: (
+                    not isinstance(value, str)
+                    or not value.strip()
+                )
+            )
+
+            if invalid_values.any():
+                raise ValueError(
+                    f"Manifest column '{column}' contains invalid text values."
+                )
+
+        # Reject unknown split assignments.
+        observed_splits = set(manifest["split"].unique())
+        invalid_splits = observed_splits - VALID_SPLITS
+
+        if invalid_splits:
+            raise ValueError(
+                f"Manifest contains invalid split assignments: "
+                f"{sorted(invalid_splits)}"
+            )
 
         self.manifest = manifest.copy()
         self.split = split
@@ -61,12 +110,10 @@ class GeoDEIterableDataset(IterableDataset):
         ].copy()
 
         if self.selected_samples.empty:
-            raise ValueError(
-                f"No samples found for split: {split}"
-            )
+            raise ValueError(f"No samples found for split: {split}")
 
         self.expected_samples = {
-            int(row.source_index): (
+            row.source_index: (
                 row.label,
                 row.region,
                 row.country,
@@ -74,6 +121,8 @@ class GeoDEIterableDataset(IterableDataset):
             for row in self.selected_samples.itertuples(index=False)
         }
 
+        # Build the mapping from the entire manifest so that class indices
+        # remain consistent across train, validation, and test datasets.
         self.class_to_idx = {
             label: index
             for index, label in enumerate(
@@ -123,7 +172,6 @@ class GeoDEIterableDataset(IterableDataset):
                     "Check the dataset revision and manifest."
                 )
 
-            # Access the image only after confirming this sample is selected.
             image = sample["image"]
 
             if image is None:
@@ -153,10 +201,8 @@ class GeoDEIterableDataset(IterableDataset):
                 break
 
         if pending_indices:
-            missing_count = len(pending_indices)
-
             raise RuntimeError(
-                f"Stream ended before all selected samples were found. "
-                f"Missing {missing_count} samples. "
+                "Stream ended before all selected samples were found. "
+                f"Missing {len(pending_indices)} samples. "
                 "Check the dataset revision and source indices."
             )
