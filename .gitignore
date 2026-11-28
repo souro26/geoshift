@@ -21,10 +21,13 @@ data/cache/
 data/raw/
 data/processed/
 
-# Model checkpoints and artifacts
+# Model checkpoints and artifacts (keep README figures tracked)
 checkpoints/
 artifacts/
-outputs/
+outputs/*
+!outputs/figures/
+!outputs/figures/*.png
+!outputs/figures/**/*.png
 runs/
 *.pt
 *.pth
