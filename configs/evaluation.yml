@@ -1,0 +1,16 @@
+calibration:
+  n_bins: 15
+  temperature_max_iterations: 50
+  coverages: [1.0, 0.95, 0.9, 0.85, 0.8, 0.7, 0.6, 0.5]
+
+analysis:
+  experiment_backbone: resnet50
+  focus_region: Africa
+  top_n: 10
+  regional_gap_figure: regional_generalization_gap.png
+  selective_prediction_figure: selective_prediction_curves.png
+
+benchmark:
+  samples: 100
+  region: Africa
+  split: train

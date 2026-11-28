@@ -1,0 +1,47 @@
+dataset:
+  id: MLap/GeoDE
+  revision: acbae31823b22f84c3bbb11585d37d50aabaac44
+  split: train
+  num_classes: 40
+  regions:
+    - Africa
+    - Americas
+    - EastAsia
+    - Europe
+    - SouthEastAsia
+    - WestAsia
+
+splitting:
+  validation_fraction: 0.15
+  seed: 42
+  splits:
+    train: train
+    validation: validation
+    test: test
+
+ingestion:
+  checkpoint_interval: 1000
+
+smoke_test:
+  samples: 3
+
+cleaning:
+  country_aliases:
+    South_Africa: South Africa
+    United_Arab_Emirates: United Arab Emirates
+    United_Kingdom: United Kingdom
+
+image:
+  size: 224
+  resize_size: 256
+  imagenet_mean: [0.485, 0.456, 0.406]
+  imagenet_std: [0.229, 0.224, 0.225]
+  train:
+    random_resized_crop:
+      scale: [0.85, 1.0]
+      ratio: [0.9, 1.1]
+    color_jitter:
+      brightness: 0.15
+      contrast: 0.15
+      saturation: 0.1
+      hue: 0.02

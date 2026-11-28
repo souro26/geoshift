@@ -3,6 +3,7 @@ from numbers import Integral
 
 import pandas as pd
 
+from geoshift.config import load_config
 
 REQUIRED_COLUMNS = {
     "source_index",
@@ -11,14 +12,7 @@ REQUIRED_COLUMNS = {
     "country",
 }
 
-VALID_REGIONS = {
-    "Africa",
-    "Americas",
-    "EastAsia",
-    "Europe",
-    "SouthEastAsia",
-    "WestAsia",
-}
+VALID_REGIONS = set(load_config("data.yml")["dataset"]["regions"])
 
 
 def validate_geode_metadata(samples: pd.DataFrame) -> dict:

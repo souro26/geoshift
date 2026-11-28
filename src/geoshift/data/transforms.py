@@ -2,12 +2,14 @@
 from torchvision import transforms
 from torchvision.transforms import InterpolationMode
 
+from geoshift.config import load_config
 
-IMAGE_SIZE = 224
-RESIZE_SIZE = 256
-
-IMAGENET_MEAN = (0.485, 0.456, 0.406)
-IMAGENET_STD = (0.229, 0.224, 0.225)
+_IMAGE_CONFIG = load_config("data.yml")["image"]
+IMAGE_SIZE = _IMAGE_CONFIG["size"]
+RESIZE_SIZE = _IMAGE_CONFIG["resize_size"]
+IMAGENET_MEAN = tuple(_IMAGE_CONFIG["imagenet_mean"])
+IMAGENET_STD = tuple(_IMAGE_CONFIG["imagenet_std"])
+_TRAIN_CONFIG = _IMAGE_CONFIG["train"]
 
 
 def build_train_transform() -> transforms.Compose:
@@ -21,15 +23,12 @@ def build_train_transform() -> transforms.Compose:
         [
             transforms.RandomResizedCrop(
                 size=IMAGE_SIZE,
-                scale=(0.85, 1.0),
-                ratio=(0.9, 1.1),
+                scale=tuple(_TRAIN_CONFIG["random_resized_crop"]["scale"]),
+                ratio=tuple(_TRAIN_CONFIG["random_resized_crop"]["ratio"]),
                 interpolation=InterpolationMode.BILINEAR,
             ),
             transforms.ColorJitter(
-                brightness=0.15,
-                contrast=0.15,
-                saturation=0.10,
-                hue=0.02,
+                **_TRAIN_CONFIG["color_jitter"],
             ),
             transforms.ToTensor(),
             transforms.Normalize(

@@ -8,13 +8,17 @@ from pathlib import Path
 import torch
 from PIL import Image
 
+from geoshift.config import load_config, project_path
 from geoshift.data.geode import GeoDEStream
 from geoshift.data.transforms import build_eval_transform
 from geoshift.models import SUPPORTED_BACKBONES, build_classifier
 
-
-DEFAULT_REVISION = "acbae31823b22f84c3bbb11585d37d50aabaac44"
-DEFAULT_OUTPUT_DIR = Path("outputs/features")
+_DATA_CONFIG = load_config("data.yml")
+_PATH_CONFIG = load_config("paths.yml")
+_MODEL_CONFIG = load_config("models.yml")
+_TRAINING_CONFIG = load_config("training.yml")["feature_extraction"]
+DEFAULT_REVISION = _DATA_CONFIG["dataset"]["revision"]
+DEFAULT_OUTPUT_DIR = project_path(_PATH_CONFIG["outputs"]["features"])
 
 
 def _save_pt_atomic(payload: dict, output_path: Path) -> None:
@@ -33,31 +37,34 @@ def parse_args() -> argparse.Namespace:
     """Parse CLI arguments for feature extraction."""
 
     parser = argparse.ArgumentParser(
-        description="Extract frozen-backbone embeddings from MLap/GeoDE."
+        description=(
+            "Extract frozen-backbone embeddings from "
+            f"{_DATA_CONFIG['dataset']['id']}."
+        )
     )
     parser.add_argument(
         "--backbone",
         type=str,
-        default="resnet50",
+        default=_MODEL_CONFIG["default_backbone"],
         choices=list(SUPPORTED_BACKBONES),
-        help="Pretrained backbone for feature extraction (default: resnet50).",
+        help="Pretrained backbone for feature extraction.",
     )
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=64,
-        help="Batch size for GPU feature extraction (default: 64).",
+        default=_TRAINING_CONFIG["batch_size"],
+        help="Batch size for GPU feature extraction (configured in training.yml).",
     )
     parser.add_argument(
         "--checkpoint-interval",
         type=int,
-        default=2000,
-        help="Save an incremental O(1) chunk every N samples (default: 2000).",
+        default=_TRAINING_CONFIG["checkpoint_interval"],
+        help="Save an incremental O(1) chunk every N samples.",
     )
     parser.add_argument(
         "--max-samples",
         type=int,
-        default=None,
+        default=_TRAINING_CONFIG["max_samples"],
         help="Optional cap on samples to extract (useful for quick tests).",
     )
     parser.add_argument(
@@ -165,14 +172,15 @@ def main() -> None:
         shutil.rmtree(chunks_dir)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    use_amp = (not args.no_amp) and device.type == "cuda"
+    use_amp = _TRAINING_CONFIG["use_amp"] and not args.no_amp
+    use_amp = use_amp and device.type == "cuda"
 
     transform = build_eval_transform()
     model = build_classifier(
         backbone_name=args.backbone,
-        num_classes=40,
-        pretrained=True,
-        freeze_backbone=True,
+        num_classes=_DATA_CONFIG["dataset"]["num_classes"],
+        pretrained=_MODEL_CONFIG["pretrained"],
+        freeze_backbone=_MODEL_CONFIG["freeze_backbone"],
     ).to(device)
     model.eval()
 
@@ -190,7 +198,7 @@ def main() -> None:
     )
 
     stream = GeoDEStream(
-        split="train",
+        split=_DATA_CONFIG["dataset"]["split"],
         revision=args.revision,
         metadata_only=False,
     )

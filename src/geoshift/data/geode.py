@@ -5,6 +5,10 @@ from typing import Any, Iterator
 from datasets import load_dataset
 from huggingface_hub import HfApi
 
+from geoshift.config import load_config
+
+_DATA_CONFIG = load_config("data.yml")
+
 
 @dataclass(frozen=True)
 class GeoDESample:
@@ -20,9 +24,14 @@ class GeoDESample:
 class GeoDEStream:
     """Streaming interface for the GeoDE dataset on Hugging Face."""
 
-    DATASET_ID = "MLap/GeoDE"
+    DATASET_ID = _DATA_CONFIG["dataset"]["id"]
 
-    def __init__(self, split: str = "train", revision: str | None = None, metadata_only: bool = False) -> None:
+    def __init__(
+        self,
+        split: str = _DATA_CONFIG["dataset"]["split"],
+        revision: str | None = _DATA_CONFIG["dataset"]["revision"],
+        metadata_only: bool = False,
+    ) -> None:
         self.split = split
         self.metadata_only = metadata_only
 
@@ -33,7 +42,6 @@ class GeoDEStream:
 
         self.dataset = self._load()
 
-    
     def _load(self):
         """Load GeoDE as a remote streaming dataset."""
 
@@ -56,8 +64,6 @@ class GeoDEStream:
             streaming=True,
             revision=self.revision,
         )
-
-
     def __iter__(self) -> Iterator[GeoDESample]:
         """Iterate over GeoDE samples."""
 

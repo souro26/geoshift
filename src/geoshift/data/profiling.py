@@ -1,13 +1,18 @@
 
 import json
 import time
-
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
+from geoshift.config import load_config, project_path
 from geoshift.data.geode import GeoDESample
+
+_PATH_CONFIG = load_config("paths.yml")
+_DATA_CONFIG = load_config("data.yml")
+_PROFILE_DIR = project_path(_PATH_CONFIG["data"]["profile"])
+_CHECKPOINT_INTERVAL = _DATA_CONFIG["ingestion"]["checkpoint_interval"]
 
 
 def _build_report(
@@ -77,8 +82,8 @@ def profile_geode(
     dataset_id: str,
     split: str,
     revision: str,
-    output_dir: str | Path = "outputs/data_profile",
-    checkpoint_interval: int = 1000,
+    output_dir: str | Path = _PROFILE_DIR,
+    checkpoint_interval: int = _CHECKPOINT_INTERVAL,
 ) -> dict:
     """Profile GeoDE metadata and save checkpoint and final reports."""
 

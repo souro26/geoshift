@@ -3,12 +3,21 @@ from numbers import Integral
 import numpy as np
 import pandas as pd
 
+from geoshift.config import load_config
 
 REQUIRED_COLUMNS = { "source_index", "label", "region", "country", }
-DEFAULT_VALIDATION_FRACTION = 0.15
+_SPLIT_CONFIG = load_config("data.yml")["splitting"]
+DEFAULT_VALIDATION_FRACTION = _SPLIT_CONFIG["validation_fraction"]
+DEFAULT_RANDOM_SEED = _SPLIT_CONFIG["seed"]
+MANIFEST_SPLITS = _SPLIT_CONFIG["splits"]
 
 
-def build_geographic_split( samples: pd.DataFrame, heldout_region: str, validation_fraction: float = DEFAULT_VALIDATION_FRACTION, seed: int = 42, ) -> pd.DataFrame:
+def build_geographic_split(
+    samples: pd.DataFrame,
+    heldout_region: str,
+    validation_fraction: float = DEFAULT_VALIDATION_FRACTION,
+    seed: int = DEFAULT_RANDOM_SEED,
+) -> pd.DataFrame:
     """Build a geographic holdout split from GeoDE metadata."""
     missing_columns = REQUIRED_COLUMNS - set(samples.columns)
 
@@ -52,8 +61,8 @@ def build_geographic_split( samples: pd.DataFrame, heldout_region: str, validati
         raise ValueError( f"Unknown held-out region: {heldout_region}" )
 
     test_mask = manifest["region"] == heldout_region
-    manifest["split"] = "train"
-    manifest.loc[test_mask, "split"] = "test"
+    manifest["split"] = MANIFEST_SPLITS["train"]
+    manifest.loc[test_mask, "split"] = MANIFEST_SPLITS["test"]
     training_pool = manifest.loc[~test_mask]
     rng = np.random.default_rng(seed)
 
@@ -67,12 +76,15 @@ def build_geographic_split( samples: pd.DataFrame, heldout_region: str, validati
         validation_size = min( validation_size, group_size - 1, )
         validation_indices = rng.choice( group.index.to_numpy(), size=validation_size, replace=False, )
 
-        manifest.loc[validation_indices, "split"] = "validation"
+        manifest.loc[validation_indices, "split"] = MANIFEST_SPLITS["validation"]
 
     split_classes = manifest.groupby("split")["label"].nunique()
     total_classes = manifest["label"].nunique()
 
-    if len(split_classes) != 3 or (split_classes != total_classes).any():
+    if (
+        len(split_classes) != len(MANIFEST_SPLITS)
+        or (split_classes != total_classes).any()
+    ):
         raise ValueError( "Not every class is represented in all three splits." )
 
     return manifest

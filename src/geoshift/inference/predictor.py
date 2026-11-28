@@ -8,8 +8,12 @@ import torch
 import torch.nn.functional as F
 from PIL import Image
 
+from geoshift.config import load_config
 from geoshift.data.transforms import build_eval_transform
 from geoshift.models import build_classifier
+
+_INFERENCE_CONFIG = load_config("inference.yml")
+_MODEL_CONFIG = load_config("models.yml")
 
 
 def _extract_threshold_for_coverage(
@@ -34,7 +38,7 @@ class GeoShiftPredictor:
         class_names: list[str],
         backbone_name: str,
         heldout_region: str | None = None,
-        temperature: float = 1.0,
+        temperature: float = _INFERENCE_CONFIG["fallback_temperature"],
         confidence_threshold: float | None = None,
         target_coverage: float | None = None,
         device: torch.device | None = None,
@@ -63,9 +67,9 @@ class GeoShiftPredictor:
     def from_fold_dir(
         cls,
         fold_dir: str | Path,
-        backbone_name: str = "resnet50",
-        target_coverage: float = 0.90,
-        pretrained_backbone: bool = True,
+        backbone_name: str = _MODEL_CONFIG["default_backbone"],
+        target_coverage: float = _INFERENCE_CONFIG["target_coverage"],
+        pretrained_backbone: bool = _MODEL_CONFIG["pretrained"],
         device: torch.device | None = None,
     ) -> "GeoShiftPredictor":
         """Load a predictor from a saved linear-probe fold directory."""
@@ -84,12 +88,16 @@ class GeoShiftPredictor:
             backbone_name=backbone_name,
             num_classes=len(class_names),
             pretrained=pretrained_backbone,
-            freeze_backbone=True,
-            dropout=0.1 if has_dropout_prefix else 0.0,
+            freeze_backbone=_MODEL_CONFIG["freeze_backbone"],
+            dropout=(
+                _MODEL_CONFIG["inference_head_dropout"]
+                if has_dropout_prefix
+                else _MODEL_CONFIG["dropout"]
+            ),
         )
         model.classifier.load_state_dict(head_state)
 
-        temperature = 1.0
+        temperature = _INFERENCE_CONFIG["fallback_temperature"]
         confidence_threshold = None
         reliability_path = fold_path / "reliability.json"
         if reliability_path.exists():
@@ -116,7 +124,7 @@ class GeoShiftPredictor:
     def predict_image(
         self,
         image: Image.Image,
-        top_k: int = 5,
+        top_k: int = _INFERENCE_CONFIG["top_k"],
     ) -> dict[str, Any]:
         """Run calibrated inference on a PIL image and flag low-confidence inputs."""
 

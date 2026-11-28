@@ -17,11 +17,13 @@ from fastapi.responses import HTMLResponse
 from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, Field
 
+from geoshift.config import load_config, project_path
 from geoshift.inference import GeoShiftPredictor
 
-
-DEFAULT_FOLD_DIR = Path("outputs/experiments/linear_probe_resnet50/heldout_Africa")
-DEFAULT_LOG_PATH = Path("outputs/logs/predictions.jsonl")
+_INFERENCE_CONFIG = load_config("inference.yml")
+_MODEL_CONFIG = load_config("models.yml")
+DEFAULT_FOLD_DIR = project_path(_INFERENCE_CONFIG["fold_dir"])
+DEFAULT_LOG_PATH = project_path(_INFERENCE_CONFIG["log_path"])
 
 
 class HealthResponse(BaseModel):
@@ -78,7 +80,11 @@ class MetricsResponse(BaseModel):
 class PredictionMonitor:
     """Thread-safe prediction telemetry tracker and JSONL logger."""
 
-    def __init__(self, log_path: Path | None = None, window_size: int = 1000) -> None:
+    def __init__(
+        self,
+        log_path: Path | None = None,
+        window_size: int = _INFERENCE_CONFIG["monitor_window_size"],
+    ) -> None:
         self._lock = Lock()
         self._log_path = log_path
         self._latencies: deque[float] = deque(maxlen=window_size)
@@ -145,7 +151,11 @@ class PredictionMonitor:
                 avg_confidence=avg_conf,
                 avg_latency_ms=avg_lat,
                 p95_latency_ms=p95_lat,
-                top_predicted_classes=dict(self._class_counts.most_common(10)),
+                top_predicted_classes=dict(
+                    self._class_counts.most_common(
+                        _INFERENCE_CONFIG["top_predicted_classes"]
+                    )
+                ),
             )
 
 
@@ -207,10 +217,8 @@ _INDEX_HTML = """<!DOCTYPE html>
       <div class="control-row">
         <label for="coverageSelect"><strong>Reliability Mode (Selective Prediction)</strong></label>
         <select id="coverageSelect">
-          <option value="0.90">Balanced (90% coverage — 92.4% OOD acc on Africa)</option>
-          <option value="0.80">High Precision (80% coverage — 95.3% OOD acc on Africa)</option>
-          <option value="1.00">Always Predict (100% coverage — 87.8% OOD acc on Africa)</option>
-        </select>
+            {{COVERAGE_OPTIONS}}
+          </select>
       </div>
       <button id="predictBtn" disabled>Classify Object</button>
       <img id="preview" alt="Uploaded preview" />
@@ -285,7 +293,9 @@ _INDEX_HTML = """<!DOCTYPE html>
       predictBtn.disabled = true;
       const cov = parseFloat(coverageSelect.value);
       const threshold = thresholdForCoverage(cov);
-      const query = threshold !== null ? `?top_k=5&confidence_threshold=${threshold}` : "?top_k=5";
+      const query = threshold !== null
+        ? `?top_k={{TOP_K}}&confidence_threshold=${threshold}`
+        : "?top_k={{TOP_K}}";
       const formData = new FormData();
       formData.append("file", file);
       try {
@@ -323,11 +333,27 @@ _INDEX_HTML = """<!DOCTYPE html>
 """
 
 
+def _render_index_html() -> str:
+    """Render coverage choices from the active service configuration."""
+
+    options = "\n".join(
+        (
+            f'<option value="{mode["coverage"]:.2f}">'
+            f'{mode["label"]} ({mode["description"]})</option>'
+        )
+        for mode in _INFERENCE_CONFIG["coverage_modes"]
+    )
+    return (
+        _INDEX_HTML.replace("{{COVERAGE_OPTIONS}}", options)
+        .replace("{{TOP_K}}", str(_INFERENCE_CONFIG["top_k"]))
+    )
+
+
 def create_app(
     predictor: GeoShiftPredictor | None = None,
     fold_dir: str | Path | None = None,
     backbone_name: str | None = None,
-    target_coverage: float = 0.90,
+    target_coverage: float = _INFERENCE_CONFIG["target_coverage"],
     log_path: str | Path | None = DEFAULT_LOG_PATH,
 ) -> FastAPI:
     """Create a FastAPI app wrapping a GeoShiftPredictor and live monitor."""
@@ -335,8 +361,17 @@ def create_app(
     resolved_fold_dir = Path(
         fold_dir or os.environ.get("GEOSHIFT_FOLD_DIR", str(DEFAULT_FOLD_DIR))
     )
-    resolved_backbone = backbone_name or os.environ.get("GEOSHIFT_BACKBONE", "resnet50")
-    resolved_log_path = Path(log_path) if log_path is not None else None
+    resolved_backbone = backbone_name or os.environ.get(
+        "GEOSHIFT_BACKBONE", _MODEL_CONFIG["default_backbone"]
+    )
+    resolved_target_coverage = float(
+        os.environ.get("GEOSHIFT_TARGET_COVERAGE", target_coverage)
+    )
+    environment_log_path = os.environ.get("GEOSHIFT_LOG_PATH")
+    if log_path == DEFAULT_LOG_PATH and environment_log_path:
+        resolved_log_path = Path(environment_log_path)
+    else:
+        resolved_log_path = Path(log_path) if log_path is not None else None
 
     @asynccontextmanager
     async def lifespan(application: FastAPI):
@@ -344,7 +379,7 @@ def create_app(
             application.state.predictor = GeoShiftPredictor.from_fold_dir(
                 fold_dir=resolved_fold_dir,
                 backbone_name=resolved_backbone,
-                target_coverage=target_coverage,
+                target_coverage=resolved_target_coverage,
             )
             application.state.reliability_curve = _load_reliability_curve(
                 resolved_fold_dir
@@ -352,9 +387,9 @@ def create_app(
         yield
 
     application = FastAPI(
-        title="GeoShift Inference API",
-        version="0.2.0",
-        description="Geographic domain-generalization image classifier with calibration, abstention, and monitoring.",
+        title=_INFERENCE_CONFIG["api"]["title"],
+        version=_INFERENCE_CONFIG["api"]["version"],
+        description=_INFERENCE_CONFIG["api"]["description"],
         lifespan=lifespan,
     )
     application.state.predictor = predictor
@@ -365,7 +400,7 @@ def create_app(
 
     @application.get("/", response_class=HTMLResponse)
     def index() -> str:
-        return _INDEX_HTML
+        return _render_index_html()
 
     @application.get("/health", response_model=HealthResponse)
     def health() -> HealthResponse:
@@ -392,7 +427,11 @@ def create_app(
     @application.post("/predict", response_model=PredictionResponse)
     async def predict(
         file: UploadFile = File(...),
-        top_k: int = Query(default=5, ge=1, le=40),
+        top_k: int = Query(
+            default=_INFERENCE_CONFIG["top_k"],
+            ge=1,
+            le=_INFERENCE_CONFIG["max_top_k"],
+        ),
         confidence_threshold: float | None = Query(default=None, ge=0.0, le=1.0),
     ) -> PredictionResponse:
         active_predictor = application.state.predictor
@@ -448,3 +487,20 @@ def create_app(
 
 
 app = create_app()
+
+
+def run() -> None:
+    """Run the service using its configured host and port."""
+
+    import uvicorn
+
+    api_config = _INFERENCE_CONFIG["api"]
+    uvicorn.run(
+        app,
+        host=os.environ.get("GEOSHIFT_API_HOST", api_config["host"]),
+        port=int(os.environ.get("GEOSHIFT_API_PORT", api_config["port"])),
+    )
+
+
+if __name__ == "__main__":
+    run()

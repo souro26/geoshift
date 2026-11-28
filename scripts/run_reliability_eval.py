@@ -9,6 +9,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
+from geoshift.config import load_config, project_path
 from geoshift.evaluation import (
     DEFAULT_COVERAGES,
     apply_temperature,
@@ -19,17 +20,14 @@ from geoshift.evaluation import (
     fit_temperature,
 )
 
-
-ALL_REGIONS = (
-    "Africa",
-    "Americas",
-    "EastAsia",
-    "Europe",
-    "SouthEastAsia",
-    "WestAsia",
+_DATA_CONFIG = load_config("data.yml")
+_PATH_CONFIG = load_config("paths.yml")
+_EVALUATION_CONFIG = load_config("evaluation.yml")
+_ANALYSIS_CONFIG = _EVALUATION_CONFIG["analysis"]
+ALL_REGIONS = tuple(_DATA_CONFIG["dataset"]["regions"])
+DEFAULT_EXPERIMENT_DIR = project_path(_PATH_CONFIG["outputs"]["experiments"]) / (
+    f"linear_probe_{_ANALYSIS_CONFIG['experiment_backbone']}"
 )
-
-DEFAULT_EXPERIMENT_DIR = Path("outputs/experiments/linear_probe_resnet50")
 
 
 def parse_args() -> argparse.Namespace:
@@ -47,8 +45,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--n-bins",
         type=int,
-        default=15,
-        help="Number of confidence bins for ECE (default: 15).",
+        default=_EVALUATION_CONFIG["calibration"]["n_bins"],
+        help="Number of confidence bins for ECE.",
     )
     return parser.parse_args()
 

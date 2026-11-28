@@ -4,19 +4,24 @@
 import pandas as pd
 import torch
 
+from geoshift.config import load_config
 from geoshift.data.dataset import GeoDEIterableDataset
 from geoshift.data.geode import GeoDEStream
 from geoshift.data.transforms import build_eval_transform
 
-
-NUM_SAMPLES = 3
+_DATA_CONFIG = load_config("data.yml")
+NUM_SAMPLES = _DATA_CONFIG["smoke_test"]["samples"]
+IMAGE_SIZE = _DATA_CONFIG["image"]["size"]
 
 
 def main() -> None:
     print("GeoShift | GeoDE Integration Smoke Test")
     print("\nStep 1: Loading metadata...")
 
-    metadata_stream = GeoDEStream( split="train", metadata_only=True, )
+    metadata_stream = GeoDEStream(
+        split=_DATA_CONFIG["dataset"]["split"],
+        metadata_only=True,
+    )
     records = []
     for sample in metadata_stream:
         records.append(
@@ -25,7 +30,7 @@ def main() -> None:
                 "label": sample.label,
                 "region": sample.region,
                 "country": sample.country,
-                "split": "test",
+                "split": _DATA_CONFIG["splitting"]["splits"]["test"],
             }
         )
 
@@ -42,7 +47,12 @@ def main() -> None:
     print(f"Metadata records: {len(manifest)}")
 
     print("\nStep 2: Initializing image dataset...")
-    dataset = GeoDEIterableDataset( manifest=manifest, split="test", revision=revision, transform=build_eval_transform(), )
+    dataset = GeoDEIterableDataset(
+        manifest=manifest,
+        split=_DATA_CONFIG["splitting"]["splits"]["test"],
+        revision=revision,
+        transform=build_eval_transform(),
+    )
     print(f"Selected samples: {len(dataset)}")
     print("\nStep 3: Retrieving and preprocessing images...\n")
     samples = list(dataset)
@@ -56,7 +66,7 @@ def main() -> None:
         if not isinstance(image, torch.Tensor):
             raise TypeError("Transformed image is not a PyTorch tensor.")
 
-        if image.shape != (3, 224, 224):
+        if image.shape != (3, IMAGE_SIZE, IMAGE_SIZE):
             raise ValueError( f"Unexpected image shape: {tuple(image.shape)}" )
 
         if image.dtype != torch.float32:

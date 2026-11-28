@@ -3,11 +3,14 @@ import csv
 import json
 import os
 import tempfile
-
 from datetime import datetime, timezone
 from pathlib import Path
 
+from geoshift.config import load_config, project_path
 from geoshift.data.geode import GeoDEStream
+
+_DATA_CONFIG = load_config("data.yml")
+_RAW_DIR = project_path(load_config("paths.yml")["data"]["raw"])
 
 
 RAW_COLUMNS = [
@@ -19,9 +22,9 @@ RAW_COLUMNS = [
 
 
 def ingest_geode_metadata(
-    output_dir: str | Path = "data/raw",
-    split: str = "train",
-    revision: str | None = None,
+    output_dir: str | Path = _RAW_DIR,
+    split: str = _DATA_CONFIG["dataset"]["split"],
+    revision: str | None = _DATA_CONFIG["dataset"]["revision"],
     overwrite: bool = False,
 ) -> dict:
     """Stream GeoDE metadata and persist a raw snapshot."""

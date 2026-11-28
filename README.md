@@ -94,6 +94,19 @@ conda activate geoshift
 python -m pytest -v
 ```
 
+### Configuration
+
+Runtime and experiment defaults are centralized in [`configs/`](configs/):
+
+- `data.yml` — GeoDE revision, geographic regions, split labels/seed, cleaning aliases, and image transforms
+- `models.yml` — default and supported backbones
+- `training.yml` — feature extraction, linear-probe, and baseline training settings
+- `evaluation.yml` — calibration, selective-prediction, analysis, and benchmark settings
+- `inference.yml` — API, predictor, monitoring, and coverage-mode settings
+- `paths.yml` — data and output locations
+
+Edit these YAML files to change defaults. CLI options override experiment settings; `GEOSHIFT_CONFIG_DIR` selects a different configuration directory for deployments. The API also supports `GEOSHIFT_FOLD_DIR`, `GEOSHIFT_BACKBONE`, `GEOSHIFT_TARGET_COVERAGE`, `GEOSHIFT_LOG_PATH`, `GEOSHIFT_API_HOST`, and `GEOSHIFT_API_PORT` environment overrides.
+
 ### Reproduce the Pipeline & Experiments
 
 Run these commands from the repository root in PowerShell:
@@ -118,7 +131,7 @@ python scripts\analyze_results.py
 ### Run the Inference API & Web UI
 
 ```powershell
-uvicorn geoshift.api.app:app --host 0.0.0.0 --port 8000
+python -m geoshift.api
 ```
 
 Open `http://127.0.0.1:8000` for the interactive classifier UI (with selectable `80% / 90% / 100%` reliability coverage modes and live telemetry), `/docs` for OpenAPI/Swagger, `/health` for readiness checks, and `/metrics` for live abstention-rate and p95 latency monitoring.

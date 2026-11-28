@@ -4,6 +4,11 @@ import torch
 from torch import nn
 from torchvision import models
 
+from geoshift.config import load_config
+
+_MODEL_CONFIG = load_config("models.yml")
+_DATA_CONFIG = load_config("data.yml")
+
 
 def _build_resnet50(pretrained: bool) -> tuple[nn.Module, int]:
     weights = models.ResNet50_Weights.DEFAULT if pretrained else None
@@ -44,7 +49,13 @@ _BACKBONE_BUILDERS: dict[str, Callable[[bool], tuple[nn.Module, int]]] = {
     "swin_t": _build_swin_t,
 }
 
-SUPPORTED_BACKBONES = tuple(_BACKBONE_BUILDERS.keys())
+SUPPORTED_BACKBONES = tuple(_MODEL_CONFIG["supported_backbones"])
+_unknown_backbones = set(SUPPORTED_BACKBONES) - set(_BACKBONE_BUILDERS)
+if _unknown_backbones:
+    raise ValueError(
+        "Configured backbones have no implementation: "
+        f"{sorted(_unknown_backbones)}"
+    )
 
 
 class GeoClassifier(nn.Module):
@@ -54,9 +65,9 @@ class GeoClassifier(nn.Module):
         self,
         backbone_name: str,
         num_classes: int,
-        pretrained: bool = True,
-        freeze_backbone: bool = True,
-        dropout: float = 0.0,
+        pretrained: bool = _MODEL_CONFIG["pretrained"],
+        freeze_backbone: bool = _MODEL_CONFIG["freeze_backbone"],
+        dropout: float = _MODEL_CONFIG["dropout"],
     ) -> None:
         super().__init__()
 
@@ -141,11 +152,11 @@ class GeoClassifier(nn.Module):
 
 
 def build_classifier(
-    backbone_name: str = "resnet50",
-    num_classes: int = 40,
-    pretrained: bool = True,
-    freeze_backbone: bool = True,
-    dropout: float = 0.0,
+    backbone_name: str = _MODEL_CONFIG["default_backbone"],
+    num_classes: int = _DATA_CONFIG["dataset"]["num_classes"],
+    pretrained: bool = _MODEL_CONFIG["pretrained"],
+    freeze_backbone: bool = _MODEL_CONFIG["freeze_backbone"],
+    dropout: float = _MODEL_CONFIG["dropout"],
 ) -> GeoClassifier:
     """Construct a GeoClassifier for GeoDE experiments."""
 

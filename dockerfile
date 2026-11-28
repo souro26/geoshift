@@ -2,8 +2,7 @@ FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    GEOSHIFT_BACKBONE=resnet50 \
-    GEOSHIFT_FOLD_DIR=/app/outputs/experiments/linear_probe_resnet50/heldout_Africa
+    GEOSHIFT_CONFIG_DIR=/app/configs
 
 WORKDIR /app
 
@@ -20,13 +19,16 @@ RUN pip install --no-cache-dir \
     pillow \
     numpy \
     pandas \
+    pyyaml \
     pydantic
 
 # Pre-cache both Champion (resnet50) and Challenger (swin_t) weights
 RUN python -c "from torchvision import models; models.resnet50(weights=models.ResNet50_Weights.DEFAULT); models.swin_t(weights=models.Swin_T_Weights.DEFAULT)"
 
 COPY pyproject.toml ./
+COPY README.md ./
 COPY src ./src
+COPY configs ./configs
 
 # Bundle lightweight linear-probe heads + calibration configs (~1 MB total)
 COPY outputs/experiments/linear_probe_resnet50/heldout_Africa/logits_and_head.pt \
@@ -43,4 +45,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')" || exit 1
 
-CMD ["uvicorn", "geoshift.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "geoshift.api"]

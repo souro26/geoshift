@@ -1,0 +1,24 @@
+fold_dir: outputs/experiments/linear_probe_resnet50/heldout_Africa
+target_coverage: 0.9
+fallback_temperature: 1.0
+log_path: outputs/logs/predictions.jsonl
+monitor_window_size: 1000
+top_k: 5
+max_top_k: 40
+top_predicted_classes: 10
+coverage_modes:
+  - coverage: 0.9
+    label: Balanced
+    description: "90% coverage — 92.4% OOD accuracy on Africa"
+  - coverage: 0.8
+    label: High Precision
+    description: "80% coverage — 95.3% OOD accuracy on Africa"
+  - coverage: 1.0
+    label: Always Predict
+    description: "100% coverage — 87.8% OOD accuracy on Africa"
+api:
+  title: GeoShift Inference API
+  version: "0.2.0"
+  description: Geographic domain-generalization image classifier with calibration, abstention, and monitoring.
+  host: 0.0.0.0
+  port: 8000

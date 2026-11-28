@@ -1,18 +1,16 @@
 
 import pandas as pd
 
+from geoshift.config import load_config
+
+COUNTRY_ALIASES = load_config("data.yml")["cleaning"]["country_aliases"]
+
 
 RAW_REQUIRED_COLUMNS = {
     "source_index",
     "object",
     "region",
     "ip_country",
-}
-
-COUNTRY_ALIASES = {
-    "South_Africa": "South Africa",
-    "United_Arab_Emirates": "United Arab Emirates",
-    "United_Kingdom": "United Kingdom",
 }
 
 CANONICAL_COLUMNS = [

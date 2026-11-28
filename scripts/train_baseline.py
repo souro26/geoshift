@@ -10,15 +10,22 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
+from geoshift.config import load_config, project_path
 from geoshift.data.dataset import GeoDEIterableDataset
 from geoshift.data.transforms import build_eval_transform, build_train_transform
 from geoshift.models import SUPPORTED_BACKBONES, build_classifier
 from geoshift.training import evaluate, fit, set_seed
 
-
-DEFAULT_MANIFEST_DIR = Path("data/manifests/geographic")
-DEFAULT_OUTPUT_ROOT = Path("outputs/runs")
-DEFAULT_REVISION = "acbae31823b22f84c3bbb11585d37d50aabaac44"
+_DATA_CONFIG = load_config("data.yml")
+_MANIFEST_SPLITS = _DATA_CONFIG["splitting"]["splits"]
+_PATH_CONFIG = load_config("paths.yml")
+_TRAINING_CONFIG = load_config("training.yml")
+_MODEL_CONFIG = load_config("models.yml")
+_BASELINE_CONFIG = _TRAINING_CONFIG["baseline"]
+_DATALOADER_CONFIG = _TRAINING_CONFIG["dataloader"]
+DEFAULT_MANIFEST_DIR = project_path(_PATH_CONFIG["data"]["manifests"])
+DEFAULT_OUTPUT_ROOT = project_path(_PATH_CONFIG["outputs"]["runs"])
+DEFAULT_REVISION = _DATA_CONFIG["dataset"]["revision"]
 
 
 def parse_args() -> argparse.Namespace:
@@ -30,23 +37,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--region",
         type=str,
-        default="Africa",
-        choices=[
-            "Africa",
-            "Americas",
-            "EastAsia",
-            "Europe",
-            "SouthEastAsia",
-            "WestAsia",
-        ],
-        help="Held-out test region (default: Africa).",
+        default=_BASELINE_CONFIG["region"],
+        choices=_DATA_CONFIG["dataset"]["regions"],
+        help="Held-out test region.",
     )
     parser.add_argument(
         "--backbone",
         type=str,
-        default="resnet50",
+        default=_MODEL_CONFIG["default_backbone"],
         choices=list(SUPPORTED_BACKBONES),
-        help="Pretrained torchvision backbone (default: resnet50).",
+        help="Pretrained torchvision backbone.",
     )
     parser.add_argument(
         "--unfreeze",
@@ -56,38 +56,38 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--epochs",
         type=int,
-        default=3,
-        help="Number of training epochs (default: 3).",
+        default=_BASELINE_CONFIG["epochs"],
+        help="Number of training epochs.",
     )
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=32,
-        help="Batch size for DataLoaders (default: 32).",
+        default=_BASELINE_CONFIG["batch_size"],
+        help="Batch size for DataLoaders.",
     )
     parser.add_argument(
         "--lr",
         type=float,
-        default=1e-3,
-        help="Learning rate for AdamW (default: 1e-3).",
+        default=_BASELINE_CONFIG["learning_rate"],
+        help="Learning rate for AdamW.",
     )
     parser.add_argument(
         "--weight-decay",
         type=float,
-        default=1e-4,
-        help="Weight decay for AdamW (default: 1e-4).",
+        default=_BASELINE_CONFIG["weight_decay"],
+        help="Weight decay for AdamW.",
     )
     parser.add_argument(
         "--dropout",
         type=float,
-        default=0.0,
-        help="Dropout before classifier linear layer (default: 0.0).",
+        default=_BASELINE_CONFIG["dropout"],
+        help="Dropout before classifier linear layer.",
     )
     parser.add_argument(
         "--seed",
         type=int,
-        default=42,
-        help="Random seed (default: 42).",
+        default=_BASELINE_CONFIG["seed"],
+        help="Random seed.",
     )
     parser.add_argument(
         "--no-amp",
@@ -97,19 +97,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--max-train-batches",
         type=int,
-        default=None,
+        default=_BASELINE_CONFIG["max_train_batches"],
         help="Optional cap on training batches per epoch (for fast sanity runs).",
     )
     parser.add_argument(
         "--max-val-batches",
         type=int,
-        default=None,
+        default=_BASELINE_CONFIG["max_val_batches"],
         help="Optional cap on validation batches per epoch.",
     )
     parser.add_argument(
         "--max-test-batches",
         type=int,
-        default=None,
+        default=_BASELINE_CONFIG["max_test_batches"],
         help="Optional cap on held-out test batches.",
     )
     parser.add_argument(
@@ -150,23 +150,24 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    use_amp = (not args.no_amp) and device.type == "cuda"
+    use_amp = _BASELINE_CONFIG["use_amp"] and not args.no_amp
+    use_amp = use_amp and device.type == "cuda"
 
     train_dataset = GeoDEIterableDataset(
         manifest=manifest,
-        split="train",
+        split=_MANIFEST_SPLITS["train"],
         revision=args.revision,
         transform=build_train_transform(),
     )
     val_dataset = GeoDEIterableDataset(
         manifest=manifest,
-        split="validation",
+        split=_MANIFEST_SPLITS["validation"],
         revision=args.revision,
         transform=build_eval_transform(),
     )
     test_dataset = GeoDEIterableDataset(
         manifest=manifest,
-        split="test",
+        split=_MANIFEST_SPLITS["test"],
         revision=args.revision,
         transform=build_eval_transform(),
     )
@@ -174,27 +175,33 @@ def main() -> None:
     train_loader = DataLoader(
         train_dataset,
         batch_size=args.batch_size,
-        num_workers=0,
-        pin_memory=(device.type == "cuda"),
+        num_workers=_DATALOADER_CONFIG["num_workers"],
+        pin_memory=(
+            _DATALOADER_CONFIG["pin_memory_on_cuda"] and device.type == "cuda"
+        ),
     )
     val_loader = DataLoader(
         val_dataset,
         batch_size=args.batch_size,
-        num_workers=0,
-        pin_memory=(device.type == "cuda"),
+        num_workers=_DATALOADER_CONFIG["num_workers"],
+        pin_memory=(
+            _DATALOADER_CONFIG["pin_memory_on_cuda"] and device.type == "cuda"
+        ),
     )
     test_loader = DataLoader(
         test_dataset,
         batch_size=args.batch_size,
-        num_workers=0,
-        pin_memory=(device.type == "cuda"),
+        num_workers=_DATALOADER_CONFIG["num_workers"],
+        pin_memory=(
+            _DATALOADER_CONFIG["pin_memory_on_cuda"] and device.type == "cuda"
+        ),
     )
 
     num_classes = len(train_dataset.class_to_idx)
     model = build_classifier(
         backbone_name=args.backbone,
         num_classes=num_classes,
-        pretrained=True,
+        pretrained=_MODEL_CONFIG["pretrained"],
         freeze_backbone=not args.unfreeze,
         dropout=args.dropout,
     ).to(device)

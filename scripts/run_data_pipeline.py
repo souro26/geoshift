@@ -8,6 +8,7 @@ from typing import Iterator
 
 import pandas as pd
 
+from geoshift.config import load_config, project_path
 from geoshift.data.cleaning import clean_geode_metadata
 from geoshift.data.geode import GeoDESample
 from geoshift.data.ingestion import ingest_geode_metadata
@@ -15,15 +16,16 @@ from geoshift.data.manifest import build_geographic_manifests
 from geoshift.data.profiling import profile_geode
 from geoshift.data.validation import validate_geode_metadata
 
-
-DEFAULT_PINNED_REVISION = "acbae31823b22f84c3bbb11585d37d50aabaac44"
-DEFAULT_SPLIT = "train"
-DEFAULT_RAW_DIR = Path("data/raw")
-DEFAULT_PROFILE_DIR = Path("outputs/data_profile")
-DEFAULT_MANIFEST_DIR = Path("data/manifests/geographic")
-DEFAULT_VALIDATION_FRACTION = 0.15
-DEFAULT_RANDOM_SEED = 42
-DEFAULT_CHECKPOINT_INTERVAL = 1000
+_DATA_CONFIG = load_config("data.yml")
+_PATH_CONFIG = load_config("paths.yml")
+DEFAULT_PINNED_REVISION = _DATA_CONFIG["dataset"]["revision"]
+DEFAULT_SPLIT = _DATA_CONFIG["dataset"]["split"]
+DEFAULT_RAW_DIR = project_path(_PATH_CONFIG["data"]["raw"])
+DEFAULT_PROFILE_DIR = project_path(_PATH_CONFIG["data"]["profile"])
+DEFAULT_MANIFEST_DIR = project_path(_PATH_CONFIG["data"]["manifests"])
+DEFAULT_VALIDATION_FRACTION = _DATA_CONFIG["splitting"]["validation_fraction"]
+DEFAULT_RANDOM_SEED = _DATA_CONFIG["splitting"]["seed"]
+DEFAULT_CHECKPOINT_INTERVAL = _DATA_CONFIG["ingestion"]["checkpoint_interval"]
 
 
 def _iter_geode_samples(cleaned_df: pd.DataFrame) -> Iterator[GeoDESample]:

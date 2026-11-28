@@ -3,10 +3,14 @@ from numbers import Integral
 
 import pandas as pd
 
+from geoshift.config import load_config
 from geoshift.data.splits import build_geographic_split
 
+_SPLIT_CONFIG = load_config("data.yml")["splitting"]
+MANIFEST_SPLITS = _SPLIT_CONFIG["splits"]
 
-VALID_SPLITS = {"train", "validation", "test"}
+
+VALID_SPLITS = set(MANIFEST_SPLITS.values())
 
 MANIFEST_COLUMNS = [
     "source_index",
@@ -103,7 +107,10 @@ def validate_geographic_manifest(
         )
 
     test_regions = set(
-        manifest.loc[manifest["split"] == "test", "region"]
+        manifest.loc[
+            manifest["split"] == MANIFEST_SPLITS["test"],
+            "region",
+        ]
     )
 
     if test_regions != {heldout_region}:
@@ -112,7 +119,10 @@ def validate_geographic_manifest(
         )
 
     non_test_regions = set(
-        manifest.loc[manifest["split"] != "test", "region"]
+        manifest.loc[
+            manifest["split"] != MANIFEST_SPLITS["test"],
+            "region",
+        ]
     )
 
     if heldout_region in non_test_regions:
@@ -122,7 +132,7 @@ def validate_geographic_manifest(
 
     total_classes = set(expected_samples["label"])
 
-    for split_name in VALID_SPLITS:
+    for split_name in MANIFEST_SPLITS.values():
         split_classes = set(
             manifest.loc[manifest["split"] == split_name, "label"]
         )
@@ -135,8 +145,8 @@ def validate_geographic_manifest(
 
 def build_geographic_manifests(
     samples: pd.DataFrame,
-    validation_fraction: float = 0.15,
-    seed: int = 42,
+    validation_fraction: float = _SPLIT_CONFIG["validation_fraction"],
+    seed: int = _SPLIT_CONFIG["seed"],
 ) -> dict[str, pd.DataFrame]:
     """Generate and validate one manifest per held-out region."""
 

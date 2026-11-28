@@ -7,8 +7,14 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from geoshift.config import load_config
 
-DEFAULT_COVERAGES = (1.0, 0.95, 0.90, 0.85, 0.80, 0.70, 0.60, 0.50)
+_CALIBRATION_CONFIG = load_config("evaluation.yml")["calibration"]
+DEFAULT_COVERAGES = tuple(_CALIBRATION_CONFIG["coverages"])
+DEFAULT_N_BINS = _CALIBRATION_CONFIG["n_bins"]
+DEFAULT_TEMPERATURE_MAX_ITERATIONS = _CALIBRATION_CONFIG[
+    "temperature_max_iterations"
+]
 
 
 def _validate_probs_and_labels(
@@ -37,7 +43,7 @@ def _validate_probs_and_labels(
 def compute_expected_calibration_error(
     probs: np.ndarray,
     y_true: np.ndarray,
-    n_bins: int = 15,
+    n_bins: int = DEFAULT_N_BINS,
 ) -> float:
     """Compute Expected Calibration Error (ECE) over equal-width confidence bins."""
 
@@ -99,7 +105,7 @@ def compute_negative_log_likelihood(
 def fit_temperature(
     val_logits: torch.Tensor,
     val_labels: torch.Tensor,
-    max_iter: int = 50,
+    max_iter: int = DEFAULT_TEMPERATURE_MAX_ITERATIONS,
 ) -> float:
     """Fit a positive scalar temperature on in-distribution validation logits."""
 

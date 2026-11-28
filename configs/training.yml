@@ -1,0 +1,30 @@
+feature_extraction:
+  batch_size: 64
+  checkpoint_interval: 2000
+  max_samples: null
+  use_amp: true
+
+linear_probe:
+  epochs: 20
+  batch_size: 256
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  dropout: 0.0
+  seed: 42
+
+baseline:
+  region: Africa
+  epochs: 3
+  batch_size: 32
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  dropout: 0.0
+  seed: 42
+  use_amp: true
+  max_train_batches: null
+  max_val_batches: null
+  max_test_batches: null
+
+dataloader:
+  num_workers: 0
+  pin_memory_on_cuda: true

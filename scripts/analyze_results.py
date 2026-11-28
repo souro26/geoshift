@@ -7,18 +7,16 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
+from geoshift.config import load_config, project_path
 
-ALL_REGIONS = (
-    "Africa",
-    "Americas",
-    "EastAsia",
-    "Europe",
-    "SouthEastAsia",
-    "WestAsia",
+_DATA_CONFIG = load_config("data.yml")
+_PATH_CONFIG = load_config("paths.yml")
+_ANALYSIS_CONFIG = load_config("evaluation.yml")["analysis"]
+ALL_REGIONS = tuple(_DATA_CONFIG["dataset"]["regions"])
+DEFAULT_EXPERIMENT_DIR = project_path(_PATH_CONFIG["outputs"]["experiments"]) / (
+    f"linear_probe_{_ANALYSIS_CONFIG['experiment_backbone']}"
 )
-
-DEFAULT_EXPERIMENT_DIR = Path("outputs/experiments/linear_probe_resnet50")
-DEFAULT_FIGURES_DIR = Path("outputs/figures")
+DEFAULT_FIGURES_DIR = project_path(_PATH_CONFIG["outputs"]["figures"])
 
 
 def parse_args() -> argparse.Namespace:
@@ -42,15 +40,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--focus-region",
         type=str,
-        default="Africa",
+        default=_ANALYSIS_CONFIG["focus_region"],
         choices=list(ALL_REGIONS),
-        help="Held-out region for detailed per-class drop analysis (default: Africa).",
+        help="Held-out region for detailed per-class drop analysis.",
     )
     parser.add_argument(
         "--top-n",
         type=int,
-        default=10,
-        help="Number of worst-dropping classes to report (default: 10).",
+        default=_ANALYSIS_CONFIG["top_n"],
+        help="Number of worst-dropping classes to report.",
     )
     return parser.parse_args()
 
@@ -195,8 +193,8 @@ def main() -> None:
         encoding="utf-8",
     )
 
-    gap_fig = args.figures_dir / "regional_generalization_gap.png"
-    sel_fig = args.figures_dir / "selective_prediction_curves.png"
+    gap_fig = args.figures_dir / _ANALYSIS_CONFIG["regional_gap_figure"]
+    sel_fig = args.figures_dir / _ANALYSIS_CONFIG["selective_prediction_figure"]
     plot_regional_gap(summary, gap_fig)
     plot_selective_prediction(args.experiment_dir, sel_fig)
 

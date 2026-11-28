@@ -1,0 +1,10 @@
+default_backbone: resnet50
+pretrained: true
+freeze_backbone: true
+dropout: 0.0
+inference_head_dropout: 0.1
+supported_backbones:
+  - resnet50
+  - convnext_tiny
+  - efficientnet_b0
+  - swin_t

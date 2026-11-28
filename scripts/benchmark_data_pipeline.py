@@ -4,18 +4,21 @@ import argparse
 import json
 import time
 from datetime import datetime, timezone
-from pathlib import Path
 
 import pandas as pd
 
+from geoshift.config import load_config, project_path
 from geoshift.data.dataset import GeoDEIterableDataset
 from geoshift.data.transforms import build_eval_transform
 
-
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-MANIFEST_DIR = PROJECT_ROOT / "data" / "manifests" / "geographic"
-OUTPUT_DIR = PROJECT_ROOT / "outputs" / "benchmarks"
-DATASET_REVISION = "acbae31823b22f84c3bbb11585d37d50aabaac44"
+_DATA_CONFIG = load_config("data.yml")
+_MANIFEST_SPLITS = _DATA_CONFIG["splitting"]["splits"]
+_PATH_CONFIG = load_config("paths.yml")
+_BENCHMARK_CONFIG = load_config("evaluation.yml")["benchmark"]
+MANIFEST_DIR = project_path(_PATH_CONFIG["data"]["manifests"])
+OUTPUT_DIR = project_path(_PATH_CONFIG["outputs"]["benchmarks"])
+DATASET_ID = _DATA_CONFIG["dataset"]["id"]
+DATASET_REVISION = _DATA_CONFIG["dataset"]["revision"]
 
 
 def parse_args() -> argparse.Namespace:
@@ -27,20 +30,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--samples",
         type=int,
-        default=100,
+        default=_BENCHMARK_CONFIG["samples"],
         help="Number of samples to benchmark.",
     )
     parser.add_argument(
         "--region",
         type=str,
-        default="Africa",
+        default=_BENCHMARK_CONFIG["region"],
         help="Held-out geographic region defining the manifest.",
     )
     parser.add_argument(
         "--split",
         type=str,
-        default="train",
-        choices=["train", "validation", "test"],
+        default=_BENCHMARK_CONFIG["split"],
+        choices=list(_MANIFEST_SPLITS.values()),
         help="Dataset split to benchmark.",
     )
     return parser.parse_args()
@@ -130,7 +133,7 @@ def main() -> None:
 
     results = {
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
-        "dataset": "MLap/GeoDE",
+        "dataset": DATASET_ID,
         "revision": DATASET_REVISION,
         "region": args.region,
         "split": args.split,

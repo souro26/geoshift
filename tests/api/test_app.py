@@ -45,6 +45,8 @@ def test_health_and_model_info_endpoints() -> None:
     home_res = client.get("/")
     assert home_res.status_code == 200
     assert "GeoShift" in home_res.text
+    assert "{{" not in home_res.text
+    assert "Balanced" in home_res.text
 
     health_res = client.get("/health")
     assert health_res.status_code == 200

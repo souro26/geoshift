@@ -11,26 +11,27 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
+from geoshift.config import load_config, project_path
 from geoshift.evaluation import (
     compute_classification_metrics,
     compute_generalization_gap,
 )
 from geoshift.training import set_seed
 
-
-ALL_REGIONS = (
-    "Africa",
-    "Americas",
-    "EastAsia",
-    "Europe",
-    "SouthEastAsia",
-    "WestAsia",
+_DATA_CONFIG = load_config("data.yml")
+_MANIFEST_SPLITS = _DATA_CONFIG["splitting"]["splits"]
+_PATH_CONFIG = load_config("paths.yml")
+_TRAINING_CONFIG = load_config("training.yml")["linear_probe"]
+_MODEL_CONFIG = load_config("models.yml")
+ALL_REGIONS = tuple(_DATA_CONFIG["dataset"]["regions"])
+_DEFAULT_BACKBONE = _MODEL_CONFIG["default_backbone"]
+_DEFAULT_REVISION = _DATA_CONFIG["dataset"]["revision"]
+DEFAULT_FEATURES_PATH = project_path(_PATH_CONFIG["outputs"]["features"]) / (
+    f"{_DEFAULT_BACKBONE}_{_DEFAULT_REVISION[:8]}.pt"
 )
-
-DEFAULT_FEATURES_PATH = Path("outputs/features/resnet50_acbae318.pt")
-DEFAULT_MANIFEST_DIR = Path("data/manifests/geographic")
-DEFAULT_OUTPUT_ROOT = Path("outputs/experiments")
-DEFAULT_REVISION = "acbae31823b22f84c3bbb11585d37d50aabaac44"
+DEFAULT_MANIFEST_DIR = project_path(_PATH_CONFIG["data"]["manifests"])
+DEFAULT_OUTPUT_ROOT = project_path(_PATH_CONFIG["outputs"]["experiments"])
+DEFAULT_REVISION = _DEFAULT_REVISION
 
 
 def parse_args() -> argparse.Namespace:
@@ -61,38 +62,38 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--epochs",
         type=int,
-        default=20,
-        help="Training epochs per fold (default: 20).",
+        default=_TRAINING_CONFIG["epochs"],
+        help="Training epochs per fold (configured in training.yml).",
     )
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=256,
-        help="Mini-batch size for linear probe training (default: 256).",
+        default=_TRAINING_CONFIG["batch_size"],
+        help="Mini-batch size for linear probe training.",
     )
     parser.add_argument(
         "--lr",
         type=float,
-        default=1e-3,
-        help="Learning rate for AdamW (default: 1e-3).",
+        default=_TRAINING_CONFIG["learning_rate"],
+        help="Learning rate for AdamW.",
     )
     parser.add_argument(
         "--weight-decay",
         type=float,
-        default=1e-4,
-        help="Weight decay for AdamW (default: 1e-4).",
+        default=_TRAINING_CONFIG["weight_decay"],
+        help="Weight decay for AdamW.",
     )
     parser.add_argument(
         "--dropout",
         type=float,
-        default=0.0,
-        help="Dropout before the linear classification layer (default: 0.0).",
+        default=_TRAINING_CONFIG["dropout"],
+        help="Dropout before the linear classification layer.",
     )
     parser.add_argument(
         "--seed",
         type=int,
-        default=42,
-        help="Random seed (default: 42).",
+        default=_TRAINING_CONFIG["seed"],
+        help="Random seed.",
     )
     parser.add_argument(
         "--output-dir",
@@ -154,7 +155,7 @@ def run_single_fold(
     num_classes = len(class_names)
 
     split_tensors: dict[str, tuple[torch.Tensor, torch.Tensor]] = {}
-    for split_name in ("train", "validation", "test"):
+    for split_name in _MANIFEST_SPLITS.values():
         split_df = manifest[manifest["split"] == split_name]
         row_positions = [index_to_row[int(idx)] for idx in split_df["source_index"]]
         split_x = features[row_positions]
@@ -165,17 +166,17 @@ def run_single_fold(
         split_tensors[split_name] = (split_x, split_y)
 
     train_loader = DataLoader(
-        TensorDataset(*split_tensors["train"]),
+        TensorDataset(*split_tensors[_MANIFEST_SPLITS["train"]]),
         batch_size=batch_size,
         shuffle=True,
     )
     val_loader = DataLoader(
-        TensorDataset(*split_tensors["validation"]),
+        TensorDataset(*split_tensors[_MANIFEST_SPLITS["validation"]]),
         batch_size=batch_size,
         shuffle=False,
     )
     test_loader = DataLoader(
-        TensorDataset(*split_tensors["test"]),
+        TensorDataset(*split_tensors[_MANIFEST_SPLITS["test"]]),
         batch_size=batch_size,
         shuffle=False,
     )
@@ -297,9 +298,15 @@ def run_single_fold(
     return {
         "region": region,
         "best_epoch": best_epoch,
-        "train_samples": int(split_tensors["train"][0].shape[0]),
-        "val_samples": int(split_tensors["validation"][0].shape[0]),
-        "test_samples": int(split_tensors["test"][0].shape[0]),
+        "train_samples": int(
+            split_tensors[_MANIFEST_SPLITS["train"]][0].shape[0]
+        ),
+        "val_samples": int(
+            split_tensors[_MANIFEST_SPLITS["validation"]][0].shape[0]
+        ),
+        "test_samples": int(
+            split_tensors[_MANIFEST_SPLITS["test"]][0].shape[0]
+        ),
         "in_dist_val_accuracy": val_metrics["accuracy"],
         "in_dist_macro_f1": val_metrics["macro_f1"],
         "ood_test_accuracy": test_metrics["accuracy"],

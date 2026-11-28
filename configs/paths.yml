@@ -1,0 +1,12 @@
+data:
+  raw: data/raw
+  profile: outputs/data_profile
+  manifests: data/manifests/geographic
+
+outputs:
+  features: outputs/features
+  experiments: outputs/experiments
+  runs: outputs/runs
+  figures: outputs/figures
+  benchmarks: outputs/benchmarks
+  prediction_logs: outputs/logs/predictions.jsonl

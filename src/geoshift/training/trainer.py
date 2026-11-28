@@ -12,6 +12,10 @@ from torch import nn
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
+from geoshift.config import load_config
+
+_TRAINING_CONFIG = load_config("training.yml")
+
 
 def set_seed(seed: int) -> None:
     """Set Python, NumPy, and PyTorch random seeds for reproducibility."""
@@ -170,7 +174,7 @@ def fit(
     device: torch.device,
     epochs: int,
     output_dir: str | Path,
-    use_amp: bool = True,
+    use_amp: bool = _TRAINING_CONFIG["baseline"]["use_amp"],
     max_train_batches: int | None = None,
     max_val_batches: int | None = None,
     scheduler: Any | None = None,

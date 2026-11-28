@@ -5,7 +5,11 @@ from numbers import Integral
 import pandas as pd
 from torch.utils.data import IterableDataset, get_worker_info
 
+from geoshift.config import load_config
 from geoshift.data.geode import GeoDEStream
+
+_DATA_CONFIG = load_config("data.yml")
+_DATASET_SPLIT = _DATA_CONFIG["dataset"]["split"]
 
 
 REQUIRED_COLUMNS = {
@@ -16,7 +20,7 @@ REQUIRED_COLUMNS = {
     "split",
 }
 
-VALID_SPLITS = {"train", "validation", "test"}
+VALID_SPLITS = set(_DATA_CONFIG["splitting"]["splits"].values())
 
 
 class GeoDEIterableDataset(IterableDataset):
@@ -147,7 +151,7 @@ class GeoDEIterableDataset(IterableDataset):
             )
 
         stream = GeoDEStream(
-            split="train",
+            split=_DATASET_SPLIT,
             revision=self.revision,
             metadata_only=False,
         )
