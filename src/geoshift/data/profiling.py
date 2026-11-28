@@ -2,9 +2,9 @@
 import json
 import time
 from collections import Counter
-from datetime import datetime, timezone
+from collections.abc import Iterable
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Iterable
 
 from geoshift.config import load_config, project_path
 from geoshift.data.geode import GeoDESample
@@ -34,7 +34,7 @@ def _build_report(
         "split": split,
         "revision": revision,
         "generated_at_utc": datetime.now(
-            timezone.utc
+            UTC
         ).isoformat(),
         "complete": complete,
         "total_samples": total_samples,

@@ -1,7 +1,6 @@
 
 import csv
 import json
-
 from datetime import datetime
 from types import SimpleNamespace
 
@@ -9,7 +8,6 @@ import pytest
 
 import geoshift.data.ingestion as ingestion_module
 from geoshift.data.ingestion import ingest_geode_metadata
-
 
 REVISION = "acbae31823b22f84c3bbb11585d37d50aabaac44"
 

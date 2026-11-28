@@ -2,7 +2,7 @@
 
 import argparse
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -383,7 +383,7 @@ def main() -> None:
     mean_gap = float(np.mean([s["absolute_gap"] for s in fold_summaries]))
 
     aggregate = {
-        "completed_at_utc": datetime.now(timezone.utc).isoformat(),
+        "completed_at_utc": datetime.now(UTC).isoformat(),
         "backbone": backbone_name,
         "dataset_revision": args.revision,
         "epochs": args.epochs,

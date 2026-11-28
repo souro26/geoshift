@@ -1,6 +1,7 @@
 
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Any, Iterator
+from typing import Any
 
 from datasets import load_dataset
 from huggingface_hub import HfApi

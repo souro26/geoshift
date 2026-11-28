@@ -2,9 +2,9 @@
 
 import argparse
 import json
-from datetime import datetime, timezone
+from collections.abc import Iterator
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Iterator
 
 import pandas as pd
 
@@ -175,7 +175,7 @@ def run_pipeline(
         "number_of_regions": validation_summary["number_of_regions"],
         "validation_fraction": validation_fraction,
         "random_seed": seed,
-        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "generated_at_utc": datetime.now(UTC).isoformat(),
         "manifests": {},
     }
 

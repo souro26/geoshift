@@ -8,9 +8,9 @@ from torchvision import transforms
 
 from geoshift.data.transforms import (
     IMAGE_SIZE,
-    RESIZE_SIZE,
     IMAGENET_MEAN,
     IMAGENET_STD,
+    RESIZE_SIZE,
     build_eval_transform,
     build_train_transform,
 )

@@ -3,7 +3,7 @@
 import argparse
 import json
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pandas as pd
 
@@ -132,7 +132,7 @@ def main() -> None:
     print()
 
     results = {
-        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "timestamp_utc": datetime.now(UTC).isoformat(),
         "dataset": DATASET_ID,
         "revision": DATASET_REVISION,
         "region": args.region,

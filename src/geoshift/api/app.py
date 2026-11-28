@@ -7,7 +7,7 @@ import statistics
 import time
 from collections import Counter, deque
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from threading import Lock
 from typing import Any
@@ -111,7 +111,7 @@ class PredictionMonitor:
             if self._log_path is not None:
                 self._log_path.parent.mkdir(parents=True, exist_ok=True)
                 event = {
-                    "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+                    "timestamp_utc": datetime.now(UTC).isoformat(),
                     "predicted_class": predicted_class,
                     "confidence": round(confidence, 6),
                     "abstain": abstain,

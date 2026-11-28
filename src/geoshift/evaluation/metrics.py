@@ -1,6 +1,6 @@
 """Classification, per-class, confusion-matrix, and generalization-gap metrics."""
 
-from typing import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 

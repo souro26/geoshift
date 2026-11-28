@@ -2,7 +2,7 @@
 
 import argparse
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -150,7 +150,7 @@ def main() -> None:
         )
 
     summary = {
-        "completed_at_utc": datetime.now(timezone.utc).isoformat(),
+        "completed_at_utc": datetime.now(UTC).isoformat(),
         "experiment_dir": str(args.experiment_dir),
         "n_bins": args.n_bins,
         "mean_ood_ece_before": round(

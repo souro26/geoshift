@@ -3,7 +3,7 @@ import csv
 import json
 import os
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from geoshift.config import load_config, project_path
@@ -91,7 +91,7 @@ def ingest_geode_metadata(
             "split": split,
             "revision": stream.get_revision(),
             "ingested_at_utc": datetime.now(
-                timezone.utc
+                UTC
             ).isoformat(),
             "sample_count": sample_count,
             "columns": RAW_COLUMNS,

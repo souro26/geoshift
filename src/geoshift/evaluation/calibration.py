@@ -1,6 +1,6 @@
 """Calibration (temperature scaling, ECE, Brier, NLL) and selective prediction."""
 
-from typing import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 import torch

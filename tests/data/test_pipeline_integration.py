@@ -16,7 +16,6 @@ import geoshift.data.ingestion as ingestion_module
 from geoshift.data.dataset import GeoDEIterableDataset
 from geoshift.data.transforms import build_eval_transform, build_train_transform
 
-
 PINNED_REVISION = "acbae31823b22f84c3bbb11585d37d50aabaac44"
 REGIONS = [
     ("Africa", "South Africa"),

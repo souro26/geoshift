@@ -4,8 +4,7 @@ from types import SimpleNamespace
 import pytest
 
 import geoshift.data.geode as geode_module
-from geoshift.data.geode import GeoDEStream, GeoDESample
-
+from geoshift.data.geode import GeoDESample, GeoDEStream
 
 REVISION = "acbae31823b22f84c3bbb11585d37d50aabaac44"
 

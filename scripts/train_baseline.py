@@ -2,7 +2,7 @@
 
 import argparse
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pandas as pd
@@ -260,7 +260,7 @@ def main() -> None:
     gen_gap = in_dist_acc - ood_acc
 
     summary = {
-        "completed_at_utc": datetime.now(timezone.utc).isoformat(),
+        "completed_at_utc": datetime.now(UTC).isoformat(),
         "dataset_revision": args.revision,
         "heldout_region": args.region,
         "backbone": args.backbone,

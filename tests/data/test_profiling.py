@@ -1,12 +1,10 @@
 
 import json
-
 from types import SimpleNamespace
 
 import pytest
 
 from geoshift.data.profiling import profile_geode
-
 
 REVISION = "acbae31823b22f84c3bbb11585d37d50aabaac44"
 
